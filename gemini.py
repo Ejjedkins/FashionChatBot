@@ -1,26 +1,15 @@
 import base64
 import os
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
+
+from dotenv import load_dotenv
+load_dotenv()
 
 
-def generate():
-    client = genai.Client(
-        api_key=os.environ.getenv("GEMINI_API_KEY"),
-    )
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-    model = "gemini-2.0-flash"
-    contents = [
-        types.Content(
-            role="user",
-            parts=[
-                types.Part.from_text(
-                    text="""INSERT_INPUT_HERE"""
-                ),
-            ],
-        ),
-    ]
-    generate_content_config = types.GenerateContentConfig(
+generation_config = types.GenerationConfig(
         temperature=2,
         top_p=0.95,
         top_k=40,
@@ -28,12 +17,35 @@ def generate():
         response_mime_type="text/plain",
     )
 
-    for chunk in client.models.generate_content_stream(
-        model=model,
-        contents=contents,
-        config=generate_content_config,
-    ):
-        print(chunk.text, end="")
 
+model = genai.GenerativeModel(
+   model_name = "gemini-2.0-flash",
+   generation_config = generation_config,
+)
 
-generate()
+history = []
+
+print("Bot: Hi, how can I assist you today?")
+
+while True:
+    user_input = input("You: ")
+
+    # Prepare conversation history for the model
+    contents = []
+    for item in history:
+        contents.append({"role": item["role"], "parts": [item["content"]]})
+
+    contents.append({"role": "user", "parts": [user_input]})  # Add the current user input
+
+    response = model.generate_content(
+        contents=contents
+        )
+
+    model_response = response.text
+
+    print(f"Bot: {model_response}")
+    print()
+
+    # Update conversation history
+    history.append({"role": "user", "content": user_input}) #Add user input to history
+    history.append({"role": "model", "content": model_response}) #Add bot response to history
