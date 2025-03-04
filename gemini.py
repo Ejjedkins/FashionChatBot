@@ -28,7 +28,10 @@ history = []
 print("Bot: Hi, how can I assist you today?")
 
 while True:
-    user_input = input("You: ")
+    user_input = input("You: ").lower()  # Convert input to lowercase
+    if user_input in ("goodbye", "bye", "exit", "done"):
+        print("Bot: Goodbye!") #Goodbye message from bot
+        break
 
     # Prepare conversation history for the model
     contents = []
