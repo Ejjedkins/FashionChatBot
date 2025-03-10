@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gemini Chat</title>
+    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+    <div id="chat-box"></div>
+    <div id="user-input-area">
+        <input type="text" id="user-input">
+        <input type="file" id="image-upload" accept="image/*">
+        <button id="send-button">Send</button>
+    </div>
+
+    <script>
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const imageInput = document.getElementById('image-upload');
+
+        function sendMessage() {
+            const message = userInput.value;
+            const file = imageInput.files[0];
+
+            let imageData = null;
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    imageData = reader.result;
+                    sendRequest(message, imageData);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                sendRequest(message, null);
+            }
+        }
+
+    function sendRequest(message, imageData) {
+        let fullMessage = `You: ${message}`;
+        if (imageData) {
+            const img = document.createElement('img');
+            img.src = imageData;
+            img.style.maxWidth = '100px';
+            chatBox.innerHTML += fullMessage + "<br>";
+            chatBox.appendChild(img);
+        } else {
+            appendMessage('You', message);
+        }
+
+        userInput.value = '';
+        imageInput.value = '';
+
+        appendMessage('Bot', 'Typing...');
+        const lastBotMessage = chatBox.lastElementChild;
+
+        fetch('http://127.0.0.1:5000/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: message, image: imageData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            lastBotMessage.innerHTML = `Bot: ${data.response}`;
+        })
+        .catch(error => {
+            lastBotMessage.innerHTML = `Bot: Error processing request.`;
+            console.error(error);
+        });
+    }
+    
+        
+        function appendMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add("message");
+            if (sender == "You"){
+              messageDiv.classList.add("user-message");
+            } else {
+              messageDiv.classList.add("bot-message")
+            }
+            messageDiv.textContent = `${sender}: ${message}`;
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
+        }
+
+        sendButton.addEventListener('click', () => {
+            const message = userInput.value;
+            appendMessage('You', message);
+            userInput.value = '';
+
+            fetch('http://127.0.0.1:5000/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage('Bot', data.response);
+            });
+        });
+        
+        sendButton.addEventListener('click', sendMessage);
+
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault(); //Prevent default Enter behavior (newline)
+                sendMessage();
+            }
+        });
+
+        appendMessage("Bot", "Hi, how can I assist you today?");
+    </script>
+</body>
+</html>
