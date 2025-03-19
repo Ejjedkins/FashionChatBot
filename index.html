@@ -6,13 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-    <div id="chat-box"></div>
-    <div id="user-input-area">
-        <input type="text" id="user-input">
-        <input type="file" id="image-upload" accept="image/*">
-        <button id="send-button">Send</button>
+    <div class="chat-container">
+        <div id="chat-box">
+        </div>
+            <div id="user-input-area">
+                <input type="text" id="user-input">
+                <input type="file" id="image-upload" accept="image/*">
+                <button id="send-button">Send</button>
+        </div>
     </div>
-
     <script>
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
@@ -85,24 +87,6 @@
             chatBox.appendChild(messageDiv);
             chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to bottom
         }
-
-        sendButton.addEventListener('click', () => {
-            const message = userInput.value;
-            appendMessage('You', message);
-            userInput.value = '';
-
-            fetch('http://127.0.0.1:5000/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message: message })
-            })
-            .then(response => response.json())
-            .then(data => {
-                appendMessage('Bot', data.response);
-            });
-        });
         
         sendButton.addEventListener('click', sendMessage);
 

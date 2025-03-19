@@ -3,7 +3,7 @@ import os
 import google.generativeai as genai
 from google.generativeai import types
 from dotenv import load_dotenv
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, session
 from flask_cors import CORS
 import re
 
@@ -56,12 +56,17 @@ def format_response(text):
 
     return formatted_text
 
+@app.route('/')
+def index():
+    return send_from_directory('.', 'index.html')
+
 @app.route('/chat', methods=['POST'])
 def chat():
     user_input = request.json['message']
-    image_data = request.json['image']
+    image_data = request.json.get('image')
 
     contents = []
+
     for item in history:
         if "image_data" in item:
             contents.append({"role": item["role"], "parts": [item["content"], {"mime_type": "image/jpeg", "data": base64.b64decode(item["image_data"].split(',')[1])}]})
@@ -70,39 +75,39 @@ def chat():
 
     prompt = user_input
     if image_data:
-        # Refined prompt
-        prompt = f"""You are an outfit recommendation chatbot. You will be given an image and a question about the suitability of the outfit IN THE IMAGE for a specific event. Follow these steps:
+        # When image data is present, only include the current user input and image in the contents
+        prompt = f"""You are an outfit recommendation chatbot. 
+        You will be given an image of an outfit and a question about whether 
+        it is suitable for a specific occasion. Analyze the image and determine 
+        if the outfit is appropriate for the occasion described in the following question: '{user_input}'.
 
-1. Analyze the image and identify the clothing items.
-2. Describe the typical weather conditions for the event described in the question.
-3. Determine if the OVERALL OUTFIT IN THE IMAGE is suitable for the event's weather.
-4. If the outfit is suitable, explain why. If the outfit is not suitable, explain why not.
-5. Provide a clear 'yes' or 'no' answer to the question: '{user_input}'
-
-Here is the question: '{user_input}'
-Please provide your answer in a human-readable format, not as raw bounding box detections.
+Provide a concise 'yes' or 'no' answer followed by a brief explanation if asked if you would recommend or suggest 
+the outfit given a specific occasion. You can also tell the user what clothes are in the picture if asked to do so.
 """
-
         image_parts = [{"mime_type": "image/jpeg", "data": base64.b64decode(image_data.split(',')[1])}]
-        contents.append({"role": "user", "parts": [prompt, image_parts[0]]})
-        image_history.append({"role": "user", "content": prompt, "image_data": image_data})
+        contents = [{"role": "user", "parts": [prompt, image_parts[0]]}]
+        # We are not adding to history or image_history here for this specific image-based request
     else:
-        contents.append({"role": "user", "parts": [prompt]})
+        # For text-only messages, maintain the history
+        for item in history:
+            contents.append({"role": item["role"], "parts": [item["content"]]})
+        contents.append({"role": "user", "parts": [user_input]})
         history.append({"role": "user", "content": user_input})
 
     response = model.generate_content(contents=contents)
-
     model_response = response.text
-
     model_response = format_response(model_response)
 
-    history.append({"role": "model", "content": model_response})
+    # Update history only for text-based interactions
+    if not image_data:
+        history.append({"role": "model", "content": model_response})
 
     return jsonify({'response': model_response})
 
-if __name__ == '__main__':
-    app.run(debug=True)
+@app.route('/style.css')
+def serve_css():
+    return send_from_directory('.', 'style.css')
 
-    # Update conversation history
-    history.append({"role": "user", "content": user_input}) #Add user input to history
-    history.append({"role": "model", "content": model_response}) #Add bot response to history
+
+if __name__ == '__main__':
+    app.run(debug=True, host='127.0.0.1', port=5000)
